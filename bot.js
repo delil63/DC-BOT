@@ -1,3 +1,4 @@
+
 // Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
@@ -46,7 +47,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     );
 
     await interaction.reply({
-      content: `Bevor wir fortfahren, musst du dein Einverständnis geben:\n\n☑️ Deine Daten werden temporär verarbeitet, ausschließlich zur Aktivierung.\n☑️ Du verstehst, dass dies gegen die AGB der Dienste verstoßen kann.\n☑️ Du hast dein Passwort vor dem Prozess geändert und änderst es danach wieder.\n☑️ Keine aktiven Abos auf deinem Account vorhanden.\n\nBitte stimme zu, um fortzufahren.`,
+      content: `Bevor wir fortfahren, musst du dein Einverständnis geben:
+
+☑️ Deine Daten werden temporär verarbeitet, ausschließlich zur Aktivierung.
+☑️ Du verstehst, dass dies gegen die AGB der Dienste verstoßen kann.
+☑️ Du hast dein Passwort vor dem Prozess geändert und änderst es danach wieder.
+☑️ Keine aktiven Abos auf deinem Account vorhanden.
+
+Bitte stimme zu, um fortzufahren.`,
       components: [consentRow],
       ephemeral: true
     });
@@ -82,7 +90,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const price = service === 'Spotify' ? '30 €' : '40 €';
 
       await interaction.update({
-        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.\n\nBitte sende den Betrag an **paypal.me/deinlink**.\n\nKlicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
+        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.
+
+Bitte sende den Betrag an **paypal.me/deinlink**.
+
+Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -97,11 +109,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
-      // Informiere über laufende Prüfung
-      await interaction.update({
-        content: `🕵️‍♂️ Zahlung für **${selectedService}** wird überprüft...`,
-        components: []
-      });
+      await interaction.deferUpdate();
 
       // Simuliere Prüfung nach 10 Sekunden
       setTimeout(async () => {
@@ -134,7 +142,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } catch (err) {
           console.error('❌ Fehler beim Anzeigen des Modals:', err);
         }
-      }, 10000); // 10 Sekunden Verzögerung
+      }, 10000);
     }
   }
 
@@ -152,12 +160,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       password
     };
 
-    // Speicherung in JSON (Testzwecke)
-    fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',\n', (err) => {
+    fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',
+', (err) => {
       if (err) console.error('Fehler beim Speichern:', err);
     });
 
-    // E-Mail-Benachrichtigung senden (über nodemailer)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -170,7 +177,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       from: process.env.MAIL_USER,
       to: process.env.NOTIFY_TO,
       subject: `📬 Neue Bestellung: ${service}`,
-      text: `Neue Bestellung von ${interaction.user.tag} (${interaction.user.id})\n\nService: ${service}\nE-Mail: ${email}\nPasswort: ${password}`
+      text: `Neue Bestellung von ${interaction.user.tag} (${interaction.user.id})
+
+Service: ${service}
+E-Mail: ${email}
+Passwort: ${password}`
     };
 
     transporter.sendMail(mailOptions, (err, info) => {
