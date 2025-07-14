@@ -87,22 +87,6 @@ Bitte stimme zu, um fortzufahren.`,
           )
         );
 
-      await interaction.update({
-        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.
-
-Bitte sende den Betrag an **paypal.me/deinlink**.
-
-Gib danach deine PayPal-E-Mail an, um fortzufahren.`,
-        components: [],
-        ephemeral: true
-      });
-
-      await interaction.followUp({
-        content: '🧾 Bitte E-Mail angeben:',
-        components: [],
-        ephemeral: true
-      });
-
       await interaction.showModal(emailInputModal);
     }
 
