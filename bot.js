@@ -72,7 +72,25 @@ Bitte stimme zu, um fortzufahren.`,
 
     if (interaction.customId.startsWith('choose_')) {
       const service = interaction.customId === 'choose_spotify' ? 'Spotify' : 'Crunchyroll';
-      const price = service === 'Spotify' ? '30 €' : '40 €';
+
+      const continueRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`paid_continue_${service.toLowerCase()}`)
+          .setLabel('Ich habe bezahlt')
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await interaction.update({
+        content: `ℹ️ Du hast **${service}** gewählt. Bitte zahle den Betrag via PayPal.
+🔗 [Zahlungslink kommt hier]
+
+Sobald du gezahlt hast, klicke auf den Button unten:`,
+        components: [continueRow]
+      });
+    }
+
+    if (interaction.customId.startsWith('paid_continue_')) {
+      const service = interaction.customId.split('_')[2];
 
       const emailInputModal = new ModalBuilder()
         .setCustomId(`check_payment_modal_${service.toLowerCase()}`)
@@ -88,10 +106,6 @@ Bitte stimme zu, um fortzufahren.`,
         );
 
       await interaction.showModal(emailInputModal);
-    }
-
-    if (interaction.customId.startsWith('paid_continue_')) {
-      // diese wird nicht mehr verwendet
     }
   }
 
