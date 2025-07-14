@@ -1,6 +1,7 @@
-// Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur
+// Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur + PayPal Webhook
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
+const express = require('express');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
@@ -9,7 +10,6 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-// Slash-Command Registrierung
 const commands = [
   new SlashCommandBuilder().setName('start').setDescription('Beginnt den Abo-Prozess')
 ];
@@ -34,15 +34,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   if (interaction.isChatInputCommand() && interaction.commandName === 'start') {
     const consentRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('consent_accept')
-        .setLabel('Ich stimme zu')
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId('consent_decline')
-        .setLabel('Ich lehne ab')
-        .setStyle(ButtonStyle.Danger)
+      new ButtonBuilder().setCustomId('consent_accept').setLabel('Ich stimme zu').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('consent_decline').setLabel('Ich lehne ab').setStyle(ButtonStyle.Danger)
     );
 
     await interaction.reply({
@@ -67,15 +60,8 @@ Bitte stimme zu, um fortzufahren.`,
 
     if (interaction.customId === 'consent_accept') {
       const serviceRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('choose_spotify')
-          .setLabel('Spotify (30 €)')
-          .setStyle(ButtonStyle.Primary),
-
-        new ButtonBuilder()
-          .setCustomId('choose_crunchyroll')
-          .setLabel('Crunchyroll (40 €)')
-          .setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('choose_spotify').setLabel('Spotify (30 €)').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('choose_crunchyroll').setLabel('Crunchyroll (40 €)').setStyle(ButtonStyle.Secondary)
       );
 
       await interaction.update({
@@ -93,7 +79,7 @@ Bitte stimme zu, um fortzufahren.`,
 
 Bitte sende den Betrag an **paypal.me/deinlink**.
 
-Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
+Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben (dieser Button funktioniert nur nach Zahlung).`,
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -113,18 +99,10 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
         .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
         .addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('email_input')
-              .setLabel('E-Mail oder Benutzername')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
+            new TextInputBuilder().setCustomId('email_input').setLabel('E-Mail oder Benutzername').setStyle(TextInputStyle.Short).setRequired(true)
           ),
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('password_input')
-              .setLabel('Passwort')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
+            new TextInputBuilder().setCustomId('password_input').setLabel('Passwort').setStyle(TextInputStyle.Short).setRequired(true)
           )
         );
 
@@ -178,11 +156,8 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
     };
 
     transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error('E-Mail-Fehler:', err);
-      } else {
-        console.log('Benachrichtigung gesendet:', info.response);
-      }
+      if (err) console.error('E-Mail-Fehler:', err);
+      else console.log('Benachrichtigung gesendet:', info.response);
     });
 
     await interaction.reply({
@@ -190,6 +165,25 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
       ephemeral: true
     });
   }
+});
+
+// Webserver für PayPal Webhook
+const app = express();
+app.use(express.json());
+
+app.post('/paypal-webhook', (req, res) => {
+  const event = req.body;
+
+  if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
+    const payerEmail = event.resource.payer.email_address;
+    console.log(`💰 Zahlung erhalten von ${payerEmail}`);
+  }
+
+  res.sendStatus(200);
+});
+
+app.listen(3000, () => {
+  console.log('🌐 Webhook-Server läuft auf Port 3000');
 });
 
 client.login(process.env.TOKEN);
