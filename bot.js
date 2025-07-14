@@ -108,39 +108,31 @@ Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
     if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
-      await interaction.deferUpdate();
+      const modal = new ModalBuilder()
+        .setCustomId(`login_modal_${selectedService}`)
+        .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('email_input')
+              .setLabel('E-Mail oder Benutzername')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('password_input')
+              .setLabel('Passwort')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          )
+        );
 
-      setTimeout(async () => {
-        const modal = new ModalBuilder()
-          .setCustomId(`login_modal_${selectedService}`)
-          .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
-          .addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('email_input')
-                .setLabel('E-Mail oder Benutzername')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('password_input')
-                .setLabel('Passwort')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-            )
-          );
-
-        try {
-          await interaction.followUp({
-            content: `✅ Zahlung bestätigt. Bitte gib jetzt deine Zugangsdaten für **${selectedService}** ein:`,
-            ephemeral: true
-          });
-          await interaction.showModal(modal);
-        } catch (err) {
-          console.error('❌ Fehler beim Anzeigen des Modals:', err);
-        }
-      }, 10000);
+      try {
+        await interaction.showModal(modal);
+      } catch (err) {
+        console.error('❌ Fehler beim Anzeigen des Modals:', err);
+      }
     }
   }
 
