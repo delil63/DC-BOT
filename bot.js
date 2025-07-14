@@ -77,7 +77,7 @@ Bitte stimme zu, um fortzufahren.`,
       await interaction.update({
         content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.
 
-Bitte sende den Betrag an **paypal.me/deinlink**.
+Bitte sende den Betrag an **sb-fikjs44647812@business.example.com**.
 
 Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben (dieser Button funktioniert nur nach Zahlung).`,
         components: [
