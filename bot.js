@@ -1,4 +1,4 @@
-// Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur + PayPal Webhook
+// Discord.js v14 Bot mit Einverständnis-Abfrage, Dienstwahl, Zahlungsinfo, sicherer Speicherung + E-Mail-Benachrichtigung + DB-ready Struktur + PayPal Webhook + Zahlungserkennung
 const { Client, GatewayIntentBits, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Events, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const fs = require('fs');
 const express = require('express');
@@ -74,44 +74,72 @@ Bitte stimme zu, um fortzufahren.`,
       const service = interaction.customId === 'choose_spotify' ? 'Spotify' : 'Crunchyroll';
       const price = service === 'Spotify' ? '30 €' : '40 €';
 
-      await interaction.update({
-        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.
-
-Bitte sende den Betrag an **sb-fikjs44647812@business.example.com**.
-
-Klicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben (dieser Button funktioniert nur nach Zahlung).`,
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`paid_continue_${service.toLowerCase()}`)
-              .setLabel('Ich habe bezahlt')
-              .setStyle(ButtonStyle.Success)
-          )
-        ]
-      });
-    }
-
-    if (interaction.customId.startsWith('paid_continue_')) {
-      const selectedService = interaction.customId.split('_')[2];
-
-      const modal = new ModalBuilder()
-        .setCustomId(`login_modal_${selectedService}`)
-        .setTitle(`${selectedService.charAt(0).toUpperCase() + selectedService.slice(1)} Zugangsdaten`)
+      const emailInputModal = new ModalBuilder()
+        .setCustomId(`check_payment_modal_${service.toLowerCase()}`)
+        .setTitle('Zahlung prüfen')
         .addComponents(
           new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('email_input').setLabel('E-Mail oder Benutzername').setStyle(TextInputStyle.Short).setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('password_input').setLabel('Passwort').setStyle(TextInputStyle.Short).setRequired(true)
+            new TextInputBuilder()
+              .setCustomId('paypal_email')
+              .setLabel('E-Mail-Adresse deiner PayPal-Zahlung')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
           )
         );
 
-      try {
-        await interaction.showModal(modal);
-      } catch (err) {
-        console.error('❌ Fehler beim Anzeigen des Modals:', err);
-      }
+      await interaction.update({
+        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.
+
+Bitte sende den Betrag an **paypal.me/deinlink**.
+
+Gib danach deine PayPal-E-Mail an, um fortzufahren.`,
+        components: [],
+        ephemeral: true
+      });
+
+      await interaction.followUp({
+        content: '🧾 Bitte E-Mail angeben:',
+        components: [],
+        ephemeral: true
+      });
+
+      await interaction.showModal(emailInputModal);
     }
+
+    if (interaction.customId.startsWith('paid_continue_')) {
+      // diese wird nicht mehr verwendet
+    }
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('check_payment_modal_')) {
+    const service = interaction.customId.split('_')[3];
+    const userEmail = interaction.fields.getTextInputValue('paypal_email');
+
+    let paidList = [];
+    if (fs.existsSync('payments.json')) {
+      paidList = JSON.parse(fs.readFileSync('payments.json'));
+    }
+
+    if (!paidList.includes(userEmail)) {
+      return await interaction.reply({
+        content: '❌ Keine Zahlung unter dieser E-Mail gefunden. Bitte prüfe deine Eingabe oder warte etwas länger.',
+        ephemeral: true
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId(`login_modal_${service}`)
+      .setTitle(`${service.charAt(0).toUpperCase() + service.slice(1)} Zugangsdaten`)
+      .addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('email_input').setLabel('E-Mail oder Benutzername').setStyle(TextInputStyle.Short).setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('password_input').setLabel('Passwort').setStyle(TextInputStyle.Short).setRequired(true)
+        )
+      );
+
+    await interaction.showModal(modal);
   }
 
   if (interaction.isModalSubmit() && interaction.customId.startsWith('login_modal_')) {
@@ -177,6 +205,16 @@ app.post('/paypal-webhook', (req, res) => {
   if (event.event_type === 'CHECKOUT.ORDER.APPROVED') {
     const payerEmail = event.resource.payer.email_address;
     console.log(`💰 Zahlung erhalten von ${payerEmail}`);
+
+    let paidList = [];
+    if (fs.existsSync('payments.json')) {
+      paidList = JSON.parse(fs.readFileSync('payments.json'));
+    }
+
+    if (!paidList.includes(payerEmail)) {
+      paidList.push(payerEmail);
+      fs.writeFileSync('payments.json', JSON.stringify(paidList));
+    }
   }
 
   res.sendStatus(200);
