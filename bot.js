@@ -82,19 +82,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const price = service === 'Spotify' ? '30 €' : '40 €';
 
       await interaction.update({
-        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.\n\nBitte sende den Betrag an **paypal.me/deinlink**.\n\nKlicke anschließend auf "Weiter", um deine Zugangsdaten einzugeben.`,
+        content: `Du hast **${service}** gewählt. Der Preis beträgt **${price}**.\n\nBitte sende den Betrag an **paypal.me/deinlink**.\n\nKlicke anschließend auf "Ich habe bezahlt", um deine Zugangsdaten einzugeben.`,
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setCustomId(`next_input_${service.toLowerCase()}`)
-              .setLabel('Weiter')
+              .setCustomId(`paid_continue_${service.toLowerCase()}`)
+              .setLabel('Ich habe bezahlt')
               .setStyle(ButtonStyle.Success)
           )
         ]
       });
     }
 
-    if (interaction.customId.startsWith('next_input_')) {
+    if (interaction.customId.startsWith('paid_continue_')) {
       const selectedService = interaction.customId.split('_')[2];
 
       const modal = new ModalBuilder()
